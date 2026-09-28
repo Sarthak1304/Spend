@@ -2,6 +2,115 @@
 
 {% block title %}Spendly — Track Every Rupee{% endblock %}
 
+{% block head %}
+<style>
+    .hiw-overlay {
+        position: fixed;
+        inset: 0;
+        background: rgba(15, 15, 15, 0.7);
+        z-index: 9998;
+        display: none;
+    }
+
+    .hiw-overlay.hiw-visible { display: block; }
+
+    .hiw-player {
+        position: fixed;
+        z-index: 9999;
+        display: none;
+        background: #0f0f0f;
+        border-radius: 12px;
+        overflow: hidden;
+        box-shadow: 0 10px 40px rgba(0, 0, 0, 0.35);
+    }
+
+    .hiw-player.hiw-visible { display: block; }
+
+    .hiw-player.hiw-mode-modal {
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        width: min(90vw, 800px);
+    }
+
+    .hiw-player.hiw-mode-mini {
+        width: 320px;
+        max-width: calc(100vw - 24px);
+        right: 20px;
+        bottom: 20px;
+        transform: none;
+    }
+
+    .hiw-player-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 0.75rem;
+        padding: 0.5rem 0.75rem;
+        background: #1a1a1a;
+        color: #fff;
+    }
+
+    .hiw-player.hiw-mode-mini .hiw-player-header { cursor: move; }
+
+    .hiw-player-title {
+        font-size: 0.85rem;
+        font-weight: 600;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+
+    .hiw-player-controls {
+        display: flex;
+        gap: 0.35rem;
+        flex-shrink: 0;
+    }
+
+    .hiw-btn {
+        background: transparent;
+        border: none;
+        color: #fff;
+        font-size: 1.1rem;
+        line-height: 1;
+        cursor: pointer;
+        width: 26px;
+        height: 26px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        border-radius: 4px;
+        padding: 0;
+    }
+
+    .hiw-btn:hover { background: rgba(255, 255, 255, 0.15); }
+
+    .hiw-video-wrap {
+        position: relative;
+        width: 100%;
+        padding-top: 56.25%;
+        background: #000;
+    }
+
+    .hiw-iframe {
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        border: 0;
+    }
+
+    @media (max-width: 600px) {
+        .hiw-player.hiw-mode-mini {
+            width: 260px;
+            right: 12px;
+            bottom: 12px;
+        }
+    }
+</style>
+{% endblock %}
+
 {% block content %}
 
 <section class="hero">
@@ -20,7 +129,7 @@
         </p>
         <div class="hero-actions">
             <a href="{{ url_for('register') }}" class="btn-primary">Create free account</a>
-            <a href="#features" class="btn-primary">See how it works</a>
+            <a href="#features" class="btn-primary" id="hiwTrigger">See how it works</a>
         </div>
     </div>
     <div class="hero-visual">
@@ -99,4 +208,157 @@
     </div>
 </section>
 
+<div class="hiw-overlay" id="hiwOverlay"></div>
+<div class="hiw-player" id="hiwPlayer">
+    <div class="hiw-player-header" id="hiwDragHandle">
+        <span class="hiw-player-title">How it works</span>
+        <div class="hiw-player-controls">
+            <button type="button" class="hiw-btn hiw-expand" id="hiwExpand" aria-label="Expand" style="display: none;">&#9723;</button>
+            <button type="button" class="hiw-btn hiw-minimize" id="hiwMinimize" aria-label="Minimize">&#8211;</button>
+            <button type="button" class="hiw-btn hiw-close" id="hiwClose" aria-label="Close">&times;</button>
+        </div>
+    </div>
+    <div class="hiw-video-wrap">
+        <iframe id="hiwIframe" class="hiw-iframe" src="" title="How it works" allow="autoplay; encrypted-media; picture-in-picture" allowfullscreen></iframe>
+    </div>
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+(function () {
+    const VIDEO_URL = "https://www.youtube.com/embed/dQw4w9WgXcQ";
+
+    var trigger = document.getElementById('hiwTrigger');
+    var overlay = document.getElementById('hiwOverlay');
+    var player = document.getElementById('hiwPlayer');
+    var iframe = document.getElementById('hiwIframe');
+    var closeBtn = document.getElementById('hiwClose');
+    var minimizeBtn = document.getElementById('hiwMinimize');
+    var expandBtn = document.getElementById('hiwExpand');
+    var dragHandle = document.getElementById('hiwDragHandle');
+
+    var isMini = false;
+
+    function resetPosition() {
+        player.style.top = '';
+        player.style.left = '';
+        player.style.right = '';
+        player.style.bottom = '';
+    }
+
+    function openModal(e) {
+        if (e) e.preventDefault();
+        iframe.src = VIDEO_URL + '?autoplay=1';
+        overlay.classList.add('hiw-visible');
+        player.classList.add('hiw-visible', 'hiw-mode-modal');
+        player.classList.remove('hiw-mode-mini');
+        resetPosition();
+        minimizeBtn.style.display = '';
+        expandBtn.style.display = 'none';
+        isMini = false;
+        document.addEventListener('keydown', onKeydown);
+    }
+
+    function closeModal() {
+        iframe.src = '';
+        overlay.classList.remove('hiw-visible');
+        player.classList.remove('hiw-visible', 'hiw-mode-modal', 'hiw-mode-mini');
+        resetPosition();
+        isMini = false;
+        document.removeEventListener('keydown', onKeydown);
+    }
+
+    function minimizePlayer() {
+        overlay.classList.remove('hiw-visible');
+        player.classList.remove('hiw-mode-modal');
+        player.classList.add('hiw-mode-mini');
+        resetPosition();
+        minimizeBtn.style.display = 'none';
+        expandBtn.style.display = '';
+        isMini = true;
+    }
+
+    function expandPlayer() {
+        overlay.classList.add('hiw-visible');
+        player.classList.remove('hiw-mode-mini');
+        player.classList.add('hiw-mode-modal');
+        resetPosition();
+        minimizeBtn.style.display = '';
+        expandBtn.style.display = 'none';
+        isMini = false;
+    }
+
+    function onKeydown(e) {
+        if (e.key === 'Escape') closeModal();
+    }
+
+    if (trigger) trigger.addEventListener('click', openModal);
+    if (closeBtn) closeBtn.addEventListener('click', closeModal);
+    if (minimizeBtn) minimizeBtn.addEventListener('click', minimizePlayer);
+    if (expandBtn) expandBtn.addEventListener('click', expandPlayer);
+    if (overlay) {
+        overlay.addEventListener('click', function (e) {
+            if (e.target === overlay) closeModal();
+        });
+    }
+
+    var dragging = false;
+    var dragOffsetX = 0;
+    var dragOffsetY = 0;
+
+    function startDrag(clientX, clientY) {
+        if (!isMini) return;
+        dragging = true;
+        var rect = player.getBoundingClientRect();
+        dragOffsetX = clientX - rect.left;
+        dragOffsetY = clientY - rect.top;
+        player.style.right = 'auto';
+        player.style.bottom = 'auto';
+        player.style.left = rect.left + 'px';
+        player.style.top = rect.top + 'px';
+    }
+
+    function moveDrag(clientX, clientY) {
+        if (!dragging) return;
+        var rect = player.getBoundingClientRect();
+        var maxLeft = Math.max(window.innerWidth - rect.width, 0);
+        var maxTop = Math.max(window.innerHeight - rect.height, 0);
+        var newLeft = Math.min(Math.max(clientX - dragOffsetX, 0), maxLeft);
+        var newTop = Math.min(Math.max(clientY - dragOffsetY, 0), maxTop);
+        player.style.left = newLeft + 'px';
+        player.style.top = newTop + 'px';
+    }
+
+    function endDrag() {
+        dragging = false;
+    }
+
+    if (dragHandle) {
+        dragHandle.addEventListener('mousedown', function (e) {
+            if (!isMini) return;
+            startDrag(e.clientX, e.clientY);
+            e.preventDefault();
+        });
+        dragHandle.addEventListener('touchstart', function (e) {
+            if (!isMini) return;
+            var t = e.touches[0];
+            startDrag(t.clientX, t.clientY);
+        }, { passive: true });
+    }
+
+    document.addEventListener('mousemove', function (e) {
+        moveDrag(e.clientX, e.clientY);
+    });
+    document.addEventListener('touchmove', function (e) {
+        if (!dragging) return;
+        var t = e.touches[0];
+        moveDrag(t.clientX, t.clientY);
+    }, { passive: true });
+
+    document.addEventListener('mouseup', endDrag);
+    document.addEventListener('touchend', endDrag);
+})();
+</script>
 {% endblock %}
