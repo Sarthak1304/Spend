@@ -176,12 +176,7 @@ Use exactly these values:
 ## 13. Error Handling Expectations
 
 - Inserting duplicate email → should fail (UNIQUE constraint)
-- Inserting expense with invalid `user_id` → should fail (foreign key constraint)
-- Invalid queries → should raise clear errors for debugging
-
----
-
-## 14. Definition of Done
+ of Done
 
 - [ ]  Database file is created on app startup
 - [ ]  Both tables exist with correct schema and constraints
